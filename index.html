@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>时间推算工具</title>
+    <style>
+        body {
+            font-family: sans-serif;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            width: 500px;
+        }
+        .time-input {
+            width: 150px;
+            margin: 5px;
+        }
+        .project-list {
+            margin-top: 10px;
+            width: 100%;
+        }
+        .project-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 5px 0;
+        }
+        .result {
+            margin-top: 20px;
+            font-size: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>时间推算工具</h1>
+        <div>
+            <label for="calculation-mode">推算方式:</label>
+            <select id="calculation-mode">
+                <option value="forward">正向推算</option>
+                <option value="backward">反向推算</option>
+            </select>
+        </div>
+        <div>
+            <label for="specified-time">指定时间:</label>
+            <input type="time" id="specified-time" class="time-input">
+        </div>
+        <div class="project-list">
+            <h2>项目列表:</h2>
+            <div id="project-items">
+                <!-- 动态添加项目 -->
+            </div>
+            <button id="add-project">添加项目</button>
+            <button id="manage-types">设置类型</button>
+        </div>
+      
+        <!-- 设置类型面板 -->
+        <div id="type-settings-panel" style="display: none;">
+            <h2>设置类型 <span id="close-type-settings" style="color:red;cursor:pointer;font-size:1rem;margin-left:10px">X</span></h2>
+            <div id="type-list">
+                <!-- 动态添加类型 -->
+            </div>
+            <div>
+<!--               <p style="margin:0px">新建类型可以预制等待时间：</p> -->
+                <input type="text" id="new-type" placeholder="输入新类型">
+<!--                 <input type="time" id="new-specified-time" class="time-input"> -->
+                <button id="add-type">添加类型</button>
+            </div>
+            <button id="close-type-settings">关闭</button>
+        </div>
+      
+        <div class="result">
+            最终时间: <span id="final-time"></span>
+        </div>
+      
+    </div>
+
+    <script>
+        const calculationModeSelect = document.getElementById('calculation-mode');
+        const specifiedTimeInput = document.getElementById('specified-time');
+        const projectItems = document.getElementById('project-items');
+        const addProjectButton = document.getElementById('add-project');
+        const manageTypesButton = document.getElementById('manage-types');
+        const finalTimeDisplay = document.getElementById('final-time');
+
+        // 类型选项
+        let types = JSON.parse(localStorage.getItem('types')) || ['吃饭', '喝药', '练功', '休息'];
+
+        // 项目列表
+        let projects = [];
+
+        // 初始化
+        function init() {
+            initTypes();
+            updateSpecifiedTime();
+            loadProjects();
+            updateFinalTime();
+        }
+
+        // 初始化类型，如果不存在默认的['吃饭', '喝药', '练功', '休息']则自动生成并保存至localstrage
+        function initTypes() {
+          let defaultTypes = ['吃饭', '喝药', '练功', '休息'];
+          let storedTypes = JSON.parse(localStorage.getItem('types'));
+            if (!storedTypes || storedTypes.length < 1) {
+                localStorage.setItem('types', JSON.stringify(defaultTypes));
+            }
+        }
+      
+        // 更新指定时间
+        function updateSpecifiedTime() {
+            if (calculationModeSelect.value === 'forward') {
+                specifiedTimeInput.value = getCurrentTime();
+            } else {
+                const now = new Date();
+                now.setHours(now.getHours() + 4);
+                const hours = now.getHours().toString().padStart(2, '0');
+                const minutes = now.getMinutes().toString().padStart(2, '0');
+                specifiedTimeInput.value = `${hours}:${minutes}`;
+            }
+          updateFinalTime();
+        }
+
+        // 从 Local Storage 加载项目
+        function loadProjects() {
+            const storedProjects = JSON.parse(localStorage.getItem('projects'));
+            if (storedProjects) {
+                projects = storedProjects;
+                projects.forEach(addProjectItem);
+            }
+        }
+
+        // 保存项目到 Local Storage
+        function saveProjects() {
+            localStorage.setItem('projects', JSON.stringify(projects));
+        }
+
+        // 获取当前时间
+        function getCurrentTime() {
+            const now = new Date();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            return `${hours}:${minutes}`;
+        }
+
+        // 更新最终时间
+        function updateFinalTime() {
+            let selectedTime = specifiedTimeInput.value;
+            let isForwardCalculation = calculationModeSelect.value === 'forward';
+
+            let finalTime = new Date(`2024-01-01T${selectedTime}`);
+
+            projects.forEach(project => {
+                const duration = project.duration;
+
+                if (isForwardCalculation) {
+                    finalTime.setMinutes(finalTime.getMinutes() + duration);
+                } else {
+                    finalTime.setMinutes(finalTime.getMinutes() - duration);
+                }
+            });
+
+            const finalHours = finalTime.getHours().toString().padStart(2, '0');
+            const finalMinutes = finalTime.getMinutes().toString().padStart(2, '0');
+            finalTimeDisplay.textContent = `${finalHours}:${finalMinutes}`;
+        }
+
+        // 添加项目
+        function addProject() {
+            const projectItem = document.createElement('div');
+            projectItem.className = 'project-item';
+
+            const typeSelect = document.createElement('select');
+            types.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = type;
+                typeSelect.appendChild(option);
+            });
+
+            const durationInput = document.createElement('input');
+            durationInput.type = 'time';
+            durationInput.step = '0';
+            durationInput.value = '00:00';
+            durationInput.className = 'time-input';
+
+            const deleteButton = document.createElement('span');
+            deleteButton.textContent = 'x';
+            deleteButton.style.cursor = 'pointer';
+            deleteButton.style.color = 'red';
+            deleteButton.addEventListener('click', () => {
+                projectItems.removeChild(projectItem);
+                projects = projects.filter(project => project.id !== id);
+                updateFinalTime();
+                saveProjects();
+            });
+
+            const id = Math.random().toString(36).substring(2, 15);
+            projectItem.appendChild(typeSelect);
+            projectItem.appendChild(durationInput);
+            projectItem.appendChild(deleteButton);
+            projectItems.appendChild(projectItem);
+
+          
+            projects.push({
+                id: id,
+                type: typeSelect.value,
+                duration: 0
+            });
+
+            // 更新时间
+            typeSelect.addEventListener('change', updateFinalTime);
+            durationInput.addEventListener('change', () => {
+                const duration = durationInput.value.split(':');
+                const hours = parseInt(duration[0]);
+                const minutes = parseInt(duration[1]);
+                const totalMinutes = hours * 60 + minutes;
+
+                projects.find(project => project.id === id).duration = totalMinutes;
+                updateFinalTime();
+                saveProjects();
+            });
+        }
+
+        // // 设置类型
+        // function manageTypes() {
+        //     // 此处应添加打开设置类型面板的逻辑，允许添加或删除类型
+        //     // 并将更新后的类型保存到 Local Storage 中
+        // }
+      
+        // 设置类型面板元素
+        const typeSettingsPanel = document.getElementById('type-settings-panel');
+        const typeList = document.getElementById('type-list');
+        const newTypeInput = document.getElementById('new-type');
+        const addTypeButton = document.getElementById('add-type');
+        const closeTypeSettingsButton = document.getElementById('close-type-settings');
+
+        // 设置类型
+        function manageTypes() {
+          if(typeSettingsPanel.style.display === 'block') {
+            typeSettingsPanel.style.display = 'none';
+          }else{
+            typeSettingsPanel.style.display = 'block'; // 显示设置类型面板
+
+            // 加载现有类型
+            types.forEach(addTypeItem);
+          }
+        }
+
+        // 添加类型项到面板
+        function addTypeItem(type) {
+            const typeItem = document.createElement('div');
+            typeItem.textContent = type;
+          typeItem.style.padding = '5px';
+
+            // const typeInput = document.createElement('input');
+            // typeInput.type = 'time';
+            // typeInput.step = '1';
+            // typeInput.value = '00:00';
+            // typeInput.className = 'time-input';
+            // typeInput.style.marginLeft = '10px';
+
+            const deleteButton = document.createElement('span');
+            deleteButton.textContent = 'x';
+            deleteButton.style.cursor = 'pointer';
+            deleteButton.style.color = 'red';
+            deleteButton.style.marginLeft = '10px';
+            deleteButton.addEventListener('click', () => {
+                typeList.removeChild(typeItem);
+                types = types.filter(t => t !== type);
+                saveTypes();
+            });
+
+            typeItem.appendChild(deleteButton);
+            typeList.appendChild(typeItem);
+        }
+
+        // 保存类型到 Local Storage
+        function saveTypes() {
+            localStorage.setItem('types', JSON.stringify(types));
+        }
+
+        // 添加新类型
+        addTypeButton.addEventListener('click', () => {
+            const newType = newTypeInput.value.trim();
+            if (newType) {
+                if (!types.includes(newType)) {
+                    types.push(newType);
+                    addTypeItem(newType);
+                    saveTypes();
+                    newTypeInput.value = '';
+                } else {
+                    alert('类型已存在！');
+                }
+            }
+        });
+
+        // 添加项目项到面板
+        function addProjectItem(project) {
+            const projectItem = document.createElement('div');
+            projectItem.className = 'project-item';
+
+            const typeSelect = document.createElement('select');
+            types.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = type;
+                if (project.type === type) {
+                    option.selected = true;
+                }
+                typeSelect.appendChild(option);
+            });
+
+            const durationInput = document.createElement('input');
+            durationInput.type = 'time';
+            durationInput.step = '0';
+            durationInput.className = 'time-input';
+            const durationHours = Math.floor(project.duration / 60).toString().padStart(2, '0');
+            const durationMinutes = (project.duration % 60).toString().padStart(2, '0');
+            durationInput.value = `${durationHours}:${durationMinutes}`;
+
+            const deleteButton = document.createElement('span');
+            deleteButton.textContent = 'x';
+            deleteButton.style.cursor = 'pointer';
+            deleteButton.style.color = 'red';
+            deleteButton.style.marginLeft = '10px';
+            deleteButton.addEventListener('click', () => {
+                projectItems.removeChild(projectItem);
+                projects = projects.filter(p => p.id !== project.id);
+                updateFinalTime();
+                saveProjects();
+            });
+
+            projectItem.appendChild(typeSelect);
+            projectItem.appendChild(durationInput);
+            projectItem.appendChild(deleteButton);
+            projectItems.appendChild(projectItem);
+
+            // 更新时间
+            typeSelect.addEventListener('change', updateFinalTime);
+            durationInput.addEventListener('change', () => {
+                const duration = durationInput.value.split(':');
+                const hours = parseInt(duration[0]);
+                const minutes = parseInt(duration[1]);
+                const totalMinutes = hours * 60 + minutes;
+
+                projects.find(p => p.id === project.id).duration = totalMinutes;
+                updateFinalTime();
+                saveProjects();
+            });
+        }
+      
+        // 关闭设置类型面板
+        closeTypeSettingsButton.addEventListener('click', () => {
+            typeSettingsPanel.style.display = 'none';
+        });
+
+        // 事件监听
+        calculationModeSelect.addEventListener('change', updateSpecifiedTime);
+        specifiedTimeInput.addEventListener('change', updateFinalTime);
+        addProjectButton.addEventListener('click', addProject);
+        manageTypesButton.addEventListener('click', manageTypes);
+
+        // 初始化
+        init();
+    </script>
+</body>
+</html>
